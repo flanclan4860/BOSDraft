@@ -13,8 +13,8 @@ library(stringr)
 NAME <- 2
 POSITION <- 4
 
-# Target for each stat (At Bats, Runs, HomeRuns, RBI, Stolen Bases, Batting Average)
-HITTER_TARGETS <- list(4500, 1040, 280, 1040, 165, format(0.280, nsmall=3))
+# Target for each stat (At Bats, Runs, HomeRuns, RBI, Stolen Bases, Batting Average, Tier)
+HITTER_TARGETS <- list(4500, 1040, 280, 1040, 165, format(0.280, nsmall=3), 168)
 
 # The "team" list holds the BOS team names, 
 #  used to label the tabPanels on the mainPanel, 

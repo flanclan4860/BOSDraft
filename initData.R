@@ -11,7 +11,7 @@ if (file.exists("./dfOut.csv")) {
                            BOSPos = factor(BOSPos, levels=BOSPositions, ordered=TRUE), 
                            ALPos = factor(ALPos, levels=BOSPositions, ordered=TRUE))
 } else {  # Read data from projected stats
-     dfHitters <- read.csv("./projections.csv", stringsAsFactors=FALSE)
+     dfHitters <- read.csv("./projections_tier.csv", stringsAsFactors=FALSE)
      dfHitters <- data.table(dfHitters)
      
      # Add columns for BOSTeam, BOSPos, and ALPos

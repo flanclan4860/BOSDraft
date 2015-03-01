@@ -33,7 +33,7 @@ renderTeam <- function(input, output, teamName) {
      output[[teamName]] <- renderDataTable({
           if (input$draft > 0 | input$updatePos > 0){ }
                return(dfHitters %>% filter(BOSTeam==teamName) %>% 
-                        select(one_of(c("BOSPos", playerCol, statCol))) %>%
+                        select(one_of(c("BOSPos", playerCol, statCol, "FlanaprogTiering"))) %>%
                         arrange(BOSPos))
      }
      , options=list(info=FALSE, paging=FALSE, searching=FALSE, ordering=FALSE)
@@ -52,10 +52,11 @@ renderSummary <- function(input, output, summary, teamName) {
                          HR = sum(HR, na.rm=TRUE),
                          RBI = sum(RBI, na.rm=TRUE),
                          SB = sum(SB, na.rm=TRUE),
-                         AVG = format(sum(AB*AVG)/sum(AB), digits=3, width=4)) %>%
+                         AVG = format(sum(AB*AVG)/sum(AB), digits=3, width=4),
+                         FlanaprogTiering = sum(FlanaprogTiering, na.rm=TRUE)) %>%
                rbind(HITTER_TARGETS) %>%
                mutate(Summary = c("TOTALS", "TARGET")) %>%
-               select(one_of(c("Summary", statCol)))
+               select(one_of(c("Summary", statCol, "FlanaprogTiering")))
      }
      , options=list(info=FALSE, paging=FALSE, searching=FALSE, ordering=FALSE)
      )
@@ -126,10 +127,10 @@ shinyServer(
                     return(dfHitters %>% filter(BOSTeam=="**") %>% 
                            select(one_of(c("BOSTeam", playerCol, statCol))))
               }
-              return(dfHitters %>% select(one_of(c("BOSTeam", playerCol, statCol))))
+              return(dfHitters %>% select(one_of(c("BOSTeam", playerCol, statCol, "FlanaprogTiering"))))
           }
           , callback = getCallBack("hitters")
-          , options = list(order = list(list(3, 'asc'), list(9, 'desc')))
+          , options = list(order = list(list(3, 'asc'), list(10, 'desc')))
           #, options = list(order = list(0, 'asc'))
           
           )
