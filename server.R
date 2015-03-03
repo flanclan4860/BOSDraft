@@ -30,15 +30,28 @@ getCallBack <- function(teamName) {
 # render the data table for a team
 renderTeam <- function(input, output, teamName) {
   
-     output[[teamName]] <- renderDataTable({
+     output[[paste(teamName, "hitter", sep="")]] <- renderDataTable({
           if (input$draft > 0 | input$updatePos > 0){ }
                return(dfHitters %>% filter(BOSTeam==teamName) %>% 
-                        select(one_of(c("BOSPos", playerCol, statCol, "FlanaprogTiering"))) %>%
+                        select(one_of(c("BOSPos", playerCol, statCol, flanaprog))) %>%
                         arrange(BOSPos))
      }
      , options=list(info=FALSE, paging=FALSE, searching=FALSE, ordering=FALSE)
      , callback = getCallBack(teamName)
      )
+}
+
+renderTeamPitchers <- function(input, output, teamName) {
+  
+  output[[paste(teamName, "pitcher", sep="")]] <- renderDataTable({
+    if (input$draft > 0 | input$updatePos > 0){ }
+    return(dfPitchers %>% filter(BOSTeam==teamName) %>% 
+             select(one_of(c("BOSPos", playerCol, pitcherStatCol))) %>%
+             arrange(BOSPos))
+  }
+  , options=list(info=FALSE, paging=FALSE, searching=FALSE, ordering=FALSE)
+  , callback = getCallBack(teamName)
+  )
 }
 
 # render summary data table for a team
@@ -53,10 +66,11 @@ renderSummary <- function(input, output, summary, teamName) {
                          RBI = sum(RBI, na.rm=TRUE),
                          SB = sum(SB, na.rm=TRUE),
                          AVG = format(sum(AB*AVG)/sum(AB), digits=3, width=4),
-                         FlanaprogTiering = sum(FlanaprogTiering, na.rm=TRUE)) %>%
+                         FlanaprogTiering = sum(FlanaprogTiering, na.rm=TRUE),
+                         FlanaprogRating = sum(FlanaprogRating, na.rm=TRUE)) %>%
                rbind(HITTER_TARGETS) %>%
                mutate(Summary = c("TOTALS", "TARGET")) %>%
-               select(one_of(c("Summary", statCol, "FlanaprogTiering")))
+               select(one_of(c("Summary", statCol, flanaprog)))
      }
      , options=list(info=FALSE, paging=FALSE, searching=FALSE, ordering=FALSE)
      )
@@ -125,15 +139,29 @@ shinyServer(
            if (input$available) {
                     # Display only available players
                     return(dfHitters %>% filter(BOSTeam=="**") %>% 
-                           select(one_of(c("BOSTeam", playerCol, statCol))))
+                           select(one_of(c("BOSTeam", playerCol, statCol, flanaprog))))
               }
-              return(dfHitters %>% select(one_of(c("BOSTeam", playerCol, statCol, "FlanaprogTiering"))))
+              return(dfHitters %>% select(one_of(c("BOSTeam", playerCol, statCol, flanaprog))))
           }
           , callback = getCallBack("hitters")
-          , options = list(order = list(list(3, 'asc'), list(10, 'desc')))
-          #, options = list(order = list(0, 'asc'))
-          
+          , options = list(info=FALSE, paging=FALSE, 
+                           order = list(list(3, 'asc'), list(10, 'desc'), list(11, 'desc')))          
           )
+         
+         ## Pitchers table
+         output$pitchers <- renderDataTable({
+           if (input$updatePos > 0 | input$draft > 0) {} 
+           if (input$available) {
+             # Display only available players
+             return(dfPitchers %>% filter(BOSTeam=="**") %>% 
+                      select(one_of(c("BOSTeam", playerCol, pitcherStatCol))))
+           }
+           return(dfPitchers %>% select(one_of(c("BOSTeam", playerCol, pitcherStatCol))))
+         }
+         , callback = getCallBack("pitchers")
+         , options = list(info=FALSE, paging=FALSE, 
+                          order = list(list(3, 'asc')))          
+         )
          
     
           # All BOS Team Rosters
@@ -141,8 +169,12 @@ shinyServer(
           #  Data in the table is the player name
           output$teamPos <- renderDataTable({
                if (input$draft > 0) { }
-                    dfHitters %>% select(BOSTeam, BOSPos, Name) %>%
-                    filter(BOSTeam != "**" & BOSPos != "NA") %>% spread(BOSTeam, Name, drop=FALSE)
+                    h <- dfHitters %>% select(BOSTeam, BOSPos, Name) %>%
+                                   filter(BOSTeam != "**" & BOSPos != "NA")
+                    p <- dfPitchers %>% select(BOSTeam, BOSPos, Name) %>%
+                                   filter(BOSTeam != "**" & BOSPos != "NA")
+                    hp <- rbind(h, p)
+                    spread(hp, BOSTeam, Name, drop=FALSE)
           }
           , options=list(info=FALSE, paging=FALSE, searching=FALSE, ordering=FALSE)
           ) 
@@ -150,9 +182,10 @@ shinyServer(
           # All AL Team Rosters, shows only undrafted players
           output$ALteamPos <- renderDataTable({
                if (input$draft > 0) { }
-                    dfHitters %>% filter(BOSTeam == "**") %>% select(Team, ALPos, Name) %>% 
-                      spread(Team, Name, drop=FALSE)
-               #}
+                    h <- dfHitters %>% filter(BOSTeam == "**") %>% select(Team, ALPos, Name) 
+                    p <- dfPitchers %>% filter(BOSTeam == "**") %>% select(Team, ALPos, Name)
+                    hp <- rbind(h, p)
+                    spread(hp, Team, Name, drop=FALSE)
          }
          , options=list(info=FALSE, paging=FALSE, searching=FALSE, ordering=FALSE)
          )   
@@ -199,6 +232,16 @@ shinyServer(
           renderTeam(input, output, names(team[7]))
           renderTeam(input, output, names(team[8]))
           renderTeam(input, output, names(team[9]))         
+         
+          renderTeamPitchers(input, output, names(team[1]))
+          renderTeamPitchers(input, output, names(team[2]))
+          renderTeamPitchers(input, output, names(team[3]))
+          renderTeamPitchers(input, output, names(team[4]))
+          renderTeamPitchers(input, output, names(team[5]))
+          renderTeamPitchers(input, output, names(team[6]))
+          renderTeamPitchers(input, output, names(team[7]))
+          renderTeamPitchers(input, output, names(team[8]))
+          renderTeamPitchers(input, output, names(team[9]))         
          
           ### Tables showing the summary totals for each column of data 
           renderSummary(input, output, "summary1", names(team[1]))
