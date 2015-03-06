@@ -1,85 +1,15 @@
 
 # Filename: server.R
-# February, 2015
+# March, 2015
 #
 # BOSDraft is a Shiny application for running a Fantasy Baseball Draft.
 #
-# There are multiple tabPanels with datatables containing player stats.
-# There is one main tab showing projected stats for all American League players,
-#  one row for each player;
-#  a tab with all of the rosters for each AL team, one row for each position;
-#  a tab with all of the rosters for the fantasy league, one row for each position;
-#  one tab for each fantasy team roster with projected stats, one row for each player
-#  a tab showing the projected standings for the fantasy league
 
-
-source("./globals.R")
-source("./draft.R")
-source("./initData.R")
-
-
-# Build the callback string for a team data table
-# The user selects the row for a player to be drafted
-# When a row is selected, the data for that row is saved in "input$rows"
-getCallBack <- function(teamName) {
-      return(paste("function(", teamName, ") {", teamName, 
-             ".on('click.dt', 'tr', function() {$(this).toggleClass('selected');Shiny.onInputChange('rows',",
-             teamName, ".row(this).data());});}", sep=""))
-}
-
-# render the data table for a team
-renderTeam <- function(input, output, teamName) {
-  
-     output[[paste(teamName, "hitter", sep="")]] <- renderDataTable({
-          if (input$draft > 0 | input$updatePos > 0){ }
-               return(dfHitters %>% filter(BOSTeam==teamName) %>% 
-                        select(one_of(c("BOSPos", playerCol, statCol, flanaprog))) %>%
-                        arrange(BOSPos))
-     }
-     , options=list(info=FALSE, paging=FALSE, searching=FALSE, ordering=FALSE)
-     , callback = getCallBack(teamName)
-     )
-}
-
-renderTeamPitchers <- function(input, output, teamName) {
-  
-  output[[paste(teamName, "pitcher", sep="")]] <- renderDataTable({
-    if (input$draft > 0 | input$updatePos > 0){ }
-    return(dfPitchers %>% filter(BOSTeam==teamName) %>% 
-             select(one_of(c("BOSPos", playerCol, pitcherStatCol))) %>%
-             arrange(BOSPos))
-  }
-  , options=list(info=FALSE, paging=FALSE, searching=FALSE, ordering=FALSE)
-  , callback = getCallBack(teamName)
-  )
-}
-
-# render summary data table for a team
-renderSummary <- function(input, output, summary, teamName) {
-  
-     output[[summary]] <- renderDataTable({
-          if (input$draft > 0) {  }  
-               dfHitters %>% filter(BOSTeam==teamName) %>%
-               summarize(AB = sum(AB, na.rm=TRUE),
-                         R = sum(R, na.rm=TRUE),
-                         HR = sum(HR, na.rm=TRUE),
-                         RBI = sum(RBI, na.rm=TRUE),
-                         SB = sum(SB, na.rm=TRUE),
-                         AVG = format(sum(AB*AVG)/sum(AB), digits=3, width=4),
-                         FlanaprogTiering = sum(FlanaprogTiering, na.rm=TRUE),
-                         FlanaprogRating = sum(FlanaprogRating, na.rm=TRUE)) %>%
-               rbind(HITTER_TARGETS) %>%
-               mutate(Summary = c("TOTALS", "TARGET")) %>%
-               select(one_of(c("Summary", statCol, flanaprog)))
-     }
-     , options=list(info=FALSE, paging=FALSE, searching=FALSE, ordering=FALSE)
-     )
-}
 
 shinyServer(
      function(input,output,session){
          
-         ## Handle 'draft' action button press
+         # Handle 'draft' action button press
          # Set BOSPos and BOSTeam for selected player
          observe({
               if (input$draft > 0) {
@@ -91,17 +21,25 @@ shinyServer(
                                           selected=names(team[team[input$draftTeam]+1]))     
                         
                    })
-                   write.csv(dfHitters, "./dfOut.csv", row.names=FALSE)
+                   # Save current state of the draft
+                   write.csv(dfHitters, "./draftedHitters.csv", row.names=FALSE)
+                   write.csv(dfPitchers, "./draftedPitchers.csv", row.names=FALSE)
               }
          })
          
-         ## Handle 'updatePos' action button press
+         # Handle 'updatePos' action button press
          # Manual selection of BOS Position
          observe({
              if (input$updatePos > 0) {
                isolate({
-                   dfHitters[Name==input$rows[NAME]]$BOSPos <<- 
-                       getPosition(dfHitters[Name==input$rows[NAME]]$BOSTeam, input$newBOSPos) 
+                   newPosition <- input$newBOSPos
+                   if (grepl("SP|RP|P", newPosition)) {
+                        dfPitchers[Name==input$rows[NAME]]$BOSPos <<- 
+                                  getPosition(dfPitchers[Name==input$rows[NAME]]$BOSTeam, newPosition)
+                   } else {
+                        dfHitters[Name==input$rows[NAME]]$BOSPos <<- 
+                                  getPosition(dfHitters[Name==input$rows[NAME]]$BOSTeam, newPosition)
+                   }
                })
                   
              }
@@ -128,7 +66,15 @@ shinyServer(
                      if (grepl("2B|SS", rowPos)) {
                           validPos <- c(validPos, "MI")
                      }
-                     validPos <- c(validPos, "DH", "Res")
+                     if (grepl("SP", rowPos)) {
+                          validPos <- c(validPos, "P", "RP")
+                     } else if (grepl("RP", rowPos)){
+                          validPos <- c(validPos, "P")
+                     }
+                     else {
+                          validPos <- c(validPos, "DH")
+                     }
+                     validPos <- c(validPos, "Res")
                      updateSelectInput(session, "newBOSPos", choices = validPos)     
                 }
          })
@@ -154,9 +100,9 @@ shinyServer(
            if (input$available) {
              # Display only available players
              return(dfPitchers %>% filter(BOSTeam=="**") %>% 
-                      select(one_of(c("BOSTeam", playerCol, pitcherStatCol))))
+                      select(one_of(c("BOSTeam", playerCol, pitcherStatCol, flanaprog))))
            }
-           return(dfPitchers %>% select(one_of(c("BOSTeam", playerCol, pitcherStatCol))))
+           return(dfPitchers %>% select(one_of(c("BOSTeam", playerCol, pitcherStatCol, flanaprog))))
          }
          , callback = getCallBack("pitchers")
          , options = list(info=FALSE, paging=FALSE, 
@@ -194,30 +140,42 @@ shinyServer(
          output$rankings <- renderDataTable({
            if (input$draft > 0) {  }
              for (i in 1:length(team)) {
-               d <- dfHitters %>% filter(BOSTeam==names(team[i])) %>%
-                    summarize(AB = sum(AB, na.rm=TRUE),
-                              R = sum(R, na.rm=TRUE),
+               # Create summary row for each team
+               h <- dfHitters %>% filter(BOSTeam==names(team[i])) %>%
+                    summarize(R = sum(R, na.rm=TRUE),
                               HR = sum(HR, na.rm=TRUE),
                               RBI = sum(RBI, na.rm=TRUE),
                               SB = sum(SB, na.rm=TRUE),
-                              AVG = format(sum(AB*AVG)/sum(AB), digits=3, width=4)) %>%
-                    mutate(Team=names(team[i]))
-                    # Add row to table
-                    dfRanks <- rbind(dfRanks, d)
+                              AVG = format(sum(AB*AVG)/sum(AB), digits=3, width=4))
+               p <- dfPitchers %>% filter(BOSTeam==names(team[i])) %>%
+                    summarize(Wins = sum(Wins, na.rm=TRUE),
+                              SO = sum(SO, na.rm=TRUE),
+                              SaveHold = sum(SaveHold, na.rm=TRUE),
+                              ERA = format(sum(ERA*IP)/sum(IP), digits=3, width=4),
+                              WHIP = format(sum(WHIP*IP)/sum(IP), digits=3, width=4))
+               hp <- data.table(cbind(h, p))
+               hp <- mutate(hp, Team=names(team[i]))
+               # Add row to table
+               dfRanks <- rbind(dfRanks, hp)
              }
              # Assign ranks for each category
-             dfRanks <- dfRanks %>% arrange(AB) %>% mutate(ABrank=c(1:9)) %>%
-                                    arrange(R) %>% mutate(Rrank=c(1:9)) %>%
+             dfRanks <- dfRanks %>% arrange(R) %>% mutate(Rrank=c(1:9)) %>%
                                     arrange(HR) %>% mutate(HRrank=c(1:9)) %>%
                                     arrange(RBI) %>% mutate(RBIrank=c(1:9)) %>%
                                     arrange(SB) %>% mutate(SBrank=c(1:9)) %>%
                                     arrange(AVG) %>% mutate(AVGrank=c(1:9)) %>%
-                        mutate(totalRank=ABrank+Rrank+HRrank+RBIrank+SBrank+AVGrank) %>%
-                        select(Team, ABrank, Rrank, HRrank, RBIrank, SBrank, AVGrank, totalRank) %>%
+                                    arrange(Wins) %>% mutate(Winsrank=c(1:9)) %>%
+                                    arrange(SO) %>% mutate(SOrank=c(1:9)) %>%
+                                    arrange(SaveHold) %>% mutate(SaveHoldrank=c(1:9)) %>%
+                                    arrange(ERA) %>% mutate(ERArank=c(1:9)) %>%
+                                    arrange(WHIP) %>% mutate(WHIPrank=c(1:9)) %>%
+                        mutate(totalRank=Rrank+HRrank+RBIrank+SBrank+AVGrank +
+                                    Winsrank + SOrank + SaveHoldrank + ERArank + WHIPrank) %>%
+                        select(Team, Rrank, HRrank, RBIrank, SBrank, AVGrank, 
+                               Winsrank, SOrank, SaveHoldrank, ERArank, WHIPrank, totalRank) %>%
                         arrange(desc(totalRank))
              
              return(dfRanks)
-           #}
          }
          , options=list(info=FALSE, paging=FALSE, searching=FALSE, ordering=FALSE)
          )
@@ -254,6 +212,15 @@ shinyServer(
           renderSummary(input, output, "summary8", names(team[8]))
           renderSummary(input, output, "summary9", names(team[9]))
          
+          renderPitcherSummary(input, output, "summaryP1", names(team[1]))
+          renderPitcherSummary(input, output, "summaryP2", names(team[2]))
+          renderPitcherSummary(input, output, "summaryP3", names(team[3]))
+          renderPitcherSummary(input, output, "summaryP4", names(team[4]))
+          renderPitcherSummary(input, output, "summaryP5", names(team[5]))
+          renderPitcherSummary(input, output, "summaryP6", names(team[6]))
+          renderPitcherSummary(input, output, "summaryP7", names(team[7]))
+          renderPitcherSummary(input, output, "summaryP8", names(team[8]))
+          renderPitcherSummary(input, output, "summaryP9", names(team[9]))
+         
      }
 )
-      #edit(teamdf)

@@ -9,12 +9,15 @@ library(tidyr)
 library(data.table)
 library(stringr)
 
+
 # Column numbers in player data, from user selected row (input$rows)
 NAME <- 2
 POSITION <- 4
 
-# Target for each stat (At Bats, Runs, HomeRuns, RBI, Stolen Bases, Batting Average, Tier)
-HITTER_TARGETS <- list(4500, 1040, 280, 1040, 165, format(0.280, nsmall=3), 168, 80)
+# Target for each stat (At Bats, Runs, HomeRuns, RBI, Stolen Bases, Batting Average, Tier, Rating)
+HITTER_TARGETS <- list(4500, 1040, 280, 1040, 165, format(0.280, nsmall=3), 168, 100)
+# Pitcher targets (IP, Wins, StrikeOuts, Saves+Holds, ERA, WHIP, Tier, Rating)
+PITCHER_TARGETS <- list(900, 90, 1000, 195, format(0.380, nsmall=3), format(1.250, nsmall=3), 140, 130)
 
 # The "team" list holds the BOS team names, 
 #  used to label the tabPanels on the mainPanel, 
@@ -43,4 +46,6 @@ playerCol <- c("Name", "Team", "Pos")
 statCol <- c("AB", "R", "HR", "RBI", "SB", "AVG")
 pitcherStatCol <- c("IP","Wins","SO","SaveHold","ERA","WHIP")
 flanaprog <- c("FlanaprogTiering", "FlanaprogRating")
+
+
 

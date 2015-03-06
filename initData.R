@@ -1,16 +1,29 @@
 
 # Filename: initData.R
 #
-# Set up the data table
+# Set up the hitter and pitcher data tables
 
-# Read from data that was saved from a previous execution of BOSDraft
-# if (file.exists("./dfOut.csv")) {
-#       dfHitters <<- read.csv("./dfOut.csv", stringsAsFactors=FALSE)
-#       dfHitters <<- data.table(dfHitters)
-#       dfHitters <<- mutate(dfHitters, 
-#                            BOSPos = factor(BOSPos, levels=BOSPositions, ordered=TRUE), 
-#                            ALPos = factor(ALPos, levels=BOSPositions, ordered=TRUE))
-# } else {  # Read data from projected stats
+if (file.exists("./draftedHitters.csv")) {
+  
+      # Read from data that was saved from a previous execution of BOSDraft
+  
+      # Hitters
+      dfHitters <<- read.csv("./draftedHitters.csv", stringsAsFactors=FALSE)
+      dfHitters <<- data.table(dfHitters)
+      dfHitters <<- mutate(dfHitters, 
+                           BOSPos = factor(BOSPos, levels=playerPositions, ordered=TRUE), 
+                           ALPos = factor(ALPos, levels=playerPositions, ordered=TRUE))
+      
+      # Pitchers
+      dfPitchers <<- read.csv("./draftedPitchers.csv", stringsAsFactors=FALSE)
+      dfPitchers <<- data.table(dfPitchers)
+      dfPitchers <<- mutate(dfPitchers, 
+                           BOSPos = factor(BOSPos, levels=pitcherPositions, ordered=TRUE), 
+                           ALPos = factor(ALPos, levels=pitcherPositions, ordered=TRUE))
+      
+} else {  # Read data from projected stats file
+  
+     ## Hitters
      dfHitters <- read.csv("./hitterProjections.csv", stringsAsFactors=FALSE)
      dfHitters <- data.table(dfHitters)
      
@@ -29,6 +42,7 @@
      }
      dfHitters <- mutate(dfHitters, ALPos=BOSPos, BOSPos="", BOSTeam="**")
      
+     ## Pitchers
      dfPitchers <- read.csv("./pitcherProjections.csv", stringsAsFactors=FALSE)
      dfPitchers <- data.table(dfPitchers)
      
@@ -46,7 +60,7 @@
        draftPlayer(dfPitchers[i]$Team, dfPitchers[i]$Name, dfPitchers[i]$Pos)
      }
      dfPitchers <- mutate(dfPitchers, ALPos=BOSPos, BOSPos="", BOSTeam="**")
-#}
+}
 
 # Initialize the table used for league standings
 dfRanks <- data.table()
