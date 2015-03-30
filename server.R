@@ -52,7 +52,7 @@ shinyServer(
                 rowPos <- input$rows[POSITION]
                 if (!is.null(rowPos)) {
                      validPos <- c("Select Position")
-                     splitPos <- strsplit(rowPos, split=",")[[1]]
+                     splitPos <- strsplit(rowPos, split=" ")[[1]]
                      validPos <- c(validPos, splitPos[1])
                      if (length(splitPos) > 1){
                           validPos <- c(validPos, splitPos[2])
@@ -91,7 +91,7 @@ shinyServer(
           }
           , callback = getCallBack("hitters")
           , options = list(info=FALSE, paging=FALSE, 
-                           order = list(list(3, 'asc'), list(10, 'desc'), list(11, 'desc')))          
+                           order = list(list(10, 'desc'), list(11, 'desc')))          
           )
          
          ## Pitchers table
@@ -106,7 +106,7 @@ shinyServer(
          }
          , callback = getCallBack("pitchers")
          , options = list(info=FALSE, paging=FALSE, 
-                          order = list(list(3, 'asc')))          
+                          order = list(list(10, 'desc'), list(11, 'desc')))          
          )
          
     

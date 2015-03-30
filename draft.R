@@ -8,7 +8,7 @@
 getPosition <- function(draftingTeam, pos) {
 
      draftPosition <- "NA"
-     if (pos=="1B" | pos=="2B" | pos=="3B" | pos=="SS" | pos=="DH" | pos=="CI" | pos=="MI") {
+     if (pos=="1B" | pos=="2B" | pos=="3B" | pos=="SS" | pos=="CI" | pos=="MI" | pos=="DH") {
           if (nrow(dfHitters[BOSTeam==draftingTeam & BOSPos==pos]) == 0){
                draftPosition <- pos
           }
@@ -83,15 +83,32 @@ getPosition <- function(draftingTeam, pos) {
           }
      }
      else if (pos == "RES") {
-          if (nrow(dfHitters[BOSTeam==draftingTeam & BOSPos=="RES1"]) == 0){
+       
+          if ((nrow(dfHitters[BOSTeam==draftingTeam & BOSPos=="RES1"]) == 0) &
+              (nrow(dfPitchers[BOSTeam==draftingTeam & BOSPos=="RES1"]) == 0)){
                draftPosition <- "RES1"
           }
-          else if (nrow(dfHitters[BOSTeam==draftingTeam & BOSPos=="RES2"]) == 0) {
+          else if ((nrow(dfHitters[BOSTeam==draftingTeam & BOSPos=="RES2"]) == 0) &
+                   (nrow(dfPitchers[BOSTeam==draftingTeam & BOSPos=="RES2"]) == 0)) {
                draftPosition <- "RES2"
           }
-          else if (nrow(dfHitters[BOSTeam==draftingTeam & BOSPos=="RES3"]) == 0) {
+          else if ((nrow(dfHitters[BOSTeam==draftingTeam & BOSPos=="RES3"]) == 0) &
+                   (nrow(dfPitchers[BOSTeam==draftingTeam & BOSPos=="RES3"]) == 0)){
                draftPosition <- "RES3"
           }
+          else if ((nrow(dfHitters[BOSTeam==draftingTeam & BOSPos=="RES4"]) == 0) &
+                   (nrow(dfPitchers[BOSTeam==draftingTeam & BOSPos=="RES4"]) == 0)){
+            draftPosition <- "RES4"
+          }
+          else if ((nrow(dfHitters[BOSTeam==draftingTeam & BOSPos=="RES5"]) == 0) &
+                   (nrow(dfPitchers[BOSTeam==draftingTeam & BOSPos=="RES5"]) == 0)){
+            draftPosition <- "RES5"
+          }
+          else if ((nrow(dfHitters[BOSTeam==draftingTeam & BOSPos=="RES6"]) == 0) &
+                   (nrow(dfPitchers[BOSTeam==draftingTeam & BOSPos=="RES6"]) == 0)){
+            draftPosition <- "RES6"
+          }
+          
      }
      return(draftPosition)
 }
@@ -99,19 +116,54 @@ getPosition <- function(draftingTeam, pos) {
 # A player is "drafted" by setting the BOSTeam and BOSPos values
 draftPlayer <- function(draftingTeam, playerName, position) {
 
-     if (draftingTeam == "NONE") {   # "UnDraft", Clear team 
-          if (grepl("P", position)) {
-               dfPitchers[Name==playerName]$BOSTeam <<- "**"
-          }
-          else {
-               dfHitters[Name==playerName]$BOSTeam <<- "**" 
-          }
-     }
-     else {
+  
+#   if (draftingTeam == "NONE") {   # "UnDraft", Clear team 
+#     #if (grepl("P", position)) {
+#     draftingTeam <- "**"
+#     draftPosition <- ""
+#     #}
+#     #else {
+#     #     dfHitters[Name==playerName]$BOSTeam <<- "**" 
+#     #}
+#   }
+#   else {
+       if (grepl("RP|SP", position)) {
+         if (draftingTeam == "NONE") {
+           draftingTeam <- "**"
+           draftPosition <- ""
+         }
+         else {
+    
+            draftPosition <- getPosition(draftingTeam, position)
+       
+            if (draftPosition == "NA"){
+               # SP and RP also eligible at P
+          
+                   draftPosition <- getPosition(draftingTeam, "P")
+                   if (draftPosition == "NA") {
+                       # Try to add to reserve list
+                           draftPosition <- getPosition(draftingTeam, "RES")
+                   }
+            
+            }      
+         }
+         #Set the BOSPos column
+         dfPitchers[Name==playerName]$BOSPos <<- draftPosition
+         # Set BOSTeam column 
+         dfPitchers[Name==playerName]$BOSTeam <<- draftingTeam
+       }
+      
+  #}
+       else {
+         if (draftingTeam == "NONE") {
+           draftingTeam <- "**"
+           draftPosition <- ""
+         }
+         else {
           # Determine position for selected player
           # Player may be eligible at more than one position,
           #  strip off the first one
-          splitPos <- strsplit(position, split=",")[[1]]
+          splitPos <- strsplit(position, split=" ")[[1]]
           draftPosition <- getPosition(draftingTeam, splitPos[1])
           if (draftPosition == "NA") {
                # Try second elegible position
@@ -129,41 +181,29 @@ draftPlayer <- function(draftingTeam, playerName, position) {
                     if (grepl("SS|2B", position)) {
                          draftPosition <- getPosition(draftingTeam, "MI")
                     }
-                    if (draftPosition == "NA") {
-                         # 1B and 3B also eligible at CI
-                         if (grepl("1B|3B", position)) {
+                    
+                    # 1B and 3B also eligible at CI
+                    else if (grepl("1B|3B", position)) {
                               draftPosition <- getPosition(draftingTeam, "CI")
-                         }
-                    }
-                    if (draftPosition == "NA"){
-                         # SP and RP also eligible at P
-                         if (grepl("RP|SP", position)) {
-                              draftPosition <- getPosition(draftingTeam, "P")
-                      }
-                    }
-                    if (draftPosition == "NA"){
-                         # Try DH
-                         draftPosition <- getPosition(draftingTeam, "DH")
-                         if (draftPosition == "NA") {
-                              # Try to add to reserve list
-                              draftPosition <- getPosition(draftingTeam, "RES")
-                         }
+                    }   
+                }
+                if (draftPosition == "NA"){
+                    # Try DH
+                    draftPosition <- getPosition(draftingTeam, "DH")
+                    if (draftPosition == "NA") {
+                        # Try to add to reserve list
+                        draftPosition <- getPosition(draftingTeam, "RES")
                     }
                 }
-           } 
-          
-           if (grepl("P", position)) {
-                # Set the BOSPos column
-                dfPitchers[Name==playerName]$BOSPos <<- draftPosition
-                # Set BOSTeam column 
-                dfPitchers[Name==playerName]$BOSTeam <<- draftingTeam
            }
-           else {
-                # Set the BOSPos column
-                dfHitters[Name==playerName]$BOSPos <<- draftPosition
-                # Set BOSTeam column 
-                dfHitters[Name==playerName]$BOSTeam <<- draftingTeam
-           }
-     }
+         }
+          # Set the BOSPos column
+          dfHitters[Name==playerName]$BOSPos <<- draftPosition
+          # Set BOSTeam column 
+          dfHitters[Name==playerName]$BOSTeam <<- draftingTeam
+        } 
+       
 }
+
+
 
