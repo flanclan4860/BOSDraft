@@ -1,4 +1,5 @@
 
+# Application: BOSDraft
 # Filename: initData.R
 #
 # Set up the hitter and pitcher data tables
@@ -12,20 +13,13 @@ if (file.exists("./draftedHitters.csv")) {
       dfHitters <<- data.table(dfHitters)
       dfHitters$BOSPos <- factor(dfHitters$BOSPos, levels=playerPositions, ordered=TRUE)
       dfHitters$ALPos <- factor(dfHitters$ALPos, levels=playerPositions, ordered=TRUE)
-#       dfHitters <<- mutate(dfHitters, 
-#                            BOSPos = factor(BOSPos, levels=playerPositions, ordered=TRUE), 
-#                            ALPos = factor(ALPos, levels=playerPositions, ordered=TRUE))
-#       
+       
       # Pitchers
       dfPitchers <<- read.csv("./draftedPitchers.csv", stringsAsFactors=FALSE)
       dfPitchers <<- data.table(dfPitchers)
       dfPitchers$BOSPos <- factor(dfPitchers$BOSPos, levels=pitcherPositions, ordered=TRUE)
       dfPitchers$ALPos <- factor(dfPitchers$ALPos, levels=pitcherPositions, ordered=TRUE)
-
-#       dfPitchers <<- mutate(dfPitchers, 
-#                            BOSPos = factor(BOSPos, levels=pitcherPositions, ordered=TRUE), 
-#                            ALPos = factor(ALPos, levels=pitcherPositions, ordered=TRUE))
-#       
+       
 } else {  # Read data from projected stats file
   
      ## Hitters

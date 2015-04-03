@@ -1,4 +1,5 @@
 
+# Application: BOSDraft
 # Filename: server.R
 # March, 2015
 #
@@ -8,6 +9,7 @@
 
 shinyServer(
      function(input,output,session){
+       
          
          # Handle 'draft' action button press
          # Set BOSPos and BOSTeam for selected player
@@ -87,10 +89,11 @@ shinyServer(
                     return(dfHitters %>% filter(BOSTeam=="**") %>% 
                            select(one_of(c("BOSTeam", playerCol, statCol, flanaprog))))
               }
-              return(dfHitters %>% select(one_of(c("BOSTeam", playerCol, statCol, flanaprog))))
+           #datatable(dfHitters %>% select(one_of(c("BOSTeam", playerCol, statCol, flanaprog))))
+           return(dfHitters %>% select(one_of(c("BOSTeam", playerCol, statCol, flanaprog))))
           }
           , callback = getCallBack("hitters")
-          , options = list(info=FALSE, paging=FALSE, 
+          , options = list(info=FALSE, paging=FALSE,
                            order = list(list(10, 'desc'), list(11, 'desc')))          
           )
          
@@ -115,10 +118,21 @@ shinyServer(
           #  Data in the table is the player name
           output$teamPos <- renderDataTable({
                if (input$draft > 0) { }
-                    h <- dfHitters %>% select(BOSTeam, BOSPos, Name) %>%
-                                   filter(BOSTeam != "**" & BOSPos != "NA")
-                    p <- dfPitchers %>% select(BOSTeam, BOSPos, Name) %>%
-                                   filter(BOSTeam != "**" & BOSPos != "NA")
+                    h <- dfHitters %>% 
+                         filter(BOSTeam != "**") %>%
+                         filter(BOSPos != "NA") %>%
+                         select(BOSTeam, BOSPos, Name)
+               
+                    p <- dfPitchers %>% 
+                         filter(BOSTeam != "**") %>%
+                         filter(BOSPos != "NA") %>%
+                         select(BOSTeam, BOSPos, Name)
+               
+#                     h <- h %>% separate(Name, c("First", "Last"), sep=" ", extra="merge") %>%
+#                               select(BOSTeam, BOSPos, Last)
+#                     p <- p %>% separate(Name, c("First", "Last"), sep=" ", extra="merge") %>%
+#                               select(BOSTeam, BOSPos, Last)
+               
                     hp <- rbind(h, p)
                     spread(hp, BOSTeam, Name, drop=FALSE)
           }
@@ -128,10 +142,24 @@ shinyServer(
           # All AL Team Rosters, shows only undrafted players
           output$ALteamPos <- renderDataTable({
                if (input$draft > 0) { }
-                    h <- dfHitters %>% filter(BOSTeam == "**") %>% select(Team, ALPos, Name) 
-                    p <- dfPitchers %>% filter(BOSTeam == "**") %>% select(Team, ALPos, Name)
-                    hp <- rbind(h, p)
-                    spread(hp, Team, Name, drop=FALSE)
+                    h <- dfHitters %>% 
+                         filter(BOSTeam == "**") %>% 
+                         filter(ALPos != "NA") %>%
+                         filter(Team != "AL") %>%
+                         filter(Team != "FA") 
+                    p <- dfPitchers %>% 
+                         filter(BOSTeam == "**") %>% 
+                         filter(ALPos != "NA") %>%
+                         filter(Team != "AL") %>%
+                         filter(Team != "FA")
+               
+                h <- h %>% separate(Name, c("First", "Last"), sep=" ", extra="merge") %>%
+                           select(Team, ALPos, Last)
+                p <- p %>% separate(Name, c("First", "Last"), sep=" ", extra="merge") %>%
+                           select(Team, ALPos, Last)
+                
+                hp <- rbind(h, p)
+                spread(hp, Team, Last, drop=FALSE)
          }
          , options=list(info=FALSE, paging=FALSE, searching=FALSE, ordering=FALSE)
          )   
@@ -142,44 +170,56 @@ shinyServer(
              for (i in 1:length(team)) {
                # Create summary row for each team
                h <- dfHitters %>% filter(BOSTeam==names(team[i])) %>%
-                    summarize(R = sum(R, na.rm=TRUE),
-                              HR = sum(HR, na.rm=TRUE),
-                              RBI = sum(RBI, na.rm=TRUE),
-                              SB = sum(SB, na.rm=TRUE),
-                              AVG = format(sum(AB*AVG)/sum(AB), digits=3, width=4))
+                    summarize(Rsum = sum(R, na.rm=TRUE),
+                              HRsum = sum(HR, na.rm=TRUE),
+                              RBIsum = sum(RBI, na.rm=TRUE),
+                              SBsum = sum(SB, na.rm=TRUE),
+                              AVGsum = format(sum(AB*AVG)/sum(AB), digits=3, nsmall=3))
+                              
                p <- dfPitchers %>% filter(BOSTeam==names(team[i])) %>%
-                    summarize(Wins = sum(Wins, na.rm=TRUE),
-                              SO = sum(SO, na.rm=TRUE),
-                              SaveHold = sum(SaveHold, na.rm=TRUE),
-                              ERA = format(sum(ERA*IP)/sum(IP), digits=3, width=4),
-                              WHIP = format(sum(WHIP*IP)/sum(IP), digits=3, width=4))
+                    summarize(Winsum = sum(Wins, na.rm=TRUE),
+                              SOsum = sum(SO, na.rm=TRUE),
+                              S_Hsum = sum(S_H, na.rm=TRUE),
+                              ERAsum = format(sum(ERA*IP)/sum(IP), digits=3, nsmall=3),
+                              WHIPsum = format(sum(WHIP*IP)/sum(IP), digits=3, nsmall=3))
+                             
                hp <- data.table(cbind(h, p))
                hp <- mutate(hp, Team=names(team[i]))
                # Add row to table
                dfRanks <- rbind(dfRanks, hp)
              }
              # Assign ranks for each category
-             dfRanks <- dfRanks %>% arrange(R) %>% mutate(Rrank=c(1:9)) %>%
-                                    arrange(HR) %>% mutate(HRrank=c(1:9)) %>%
-                                    arrange(RBI) %>% mutate(RBIrank=c(1:9)) %>%
-                                    arrange(SB) %>% mutate(SBrank=c(1:9)) %>%
-                                    arrange(AVG) %>% mutate(AVGrank=c(1:9)) %>%
-                                    arrange(Wins) %>% mutate(Winsrank=c(1:9)) %>%
-                                    arrange(SO) %>% mutate(SOrank=c(1:9)) %>%
-                                    arrange(SaveHold) %>% mutate(SaveHoldrank=c(1:9)) %>%
-                                    arrange(ERA) %>% mutate(ERArank=c(1:9)) %>%
-                                    arrange(WHIP) %>% mutate(WHIPrank=c(1:9)) %>%
-                        mutate(totalRank=Rrank+HRrank+RBIrank+SBrank+AVGrank +
-                                    Winsrank + SOrank + SaveHoldrank + ERArank + WHIPrank) %>%
-                        select(Team, Rrank, HRrank, RBIrank, SBrank, AVGrank, 
-                               Winsrank, SOrank, SaveHoldrank, ERArank, WHIPrank, totalRank) %>%
-                        arrange(desc(totalRank))
+             dfRanks <- dfRanks %>% arrange(Rsum) %>% mutate(R=c(1:9)) %>%
+                                    arrange(HRsum) %>% mutate(HR=c(1:9)) %>%
+                                    arrange(RBIsum) %>% mutate(RBI=c(1:9)) %>%
+                                    arrange(SBsum) %>% mutate(SB=c(1:9)) %>%
+                                    arrange(AVGsum) %>% mutate(AVG=c(1:9)) %>%
+                                    arrange(Winsum) %>% mutate(Wins=c(1:9)) %>%
+                                    arrange(SOsum) %>% mutate(SO=c(1:9)) %>%
+                                    arrange(S_Hsum) %>% mutate(S_H=c(1:9)) %>%
+                                    arrange(desc(ERAsum)) %>% mutate(ERA=c(1:9)) %>%
+                                    arrange(desc(WHIPsum)) %>% mutate(WHIP=c(1:9)) %>%
+                        mutate(total=R+HR+RBI+SB+AVG +
+                                    Wins + SO + S_H + ERA + WHIP) %>%
+                        mutate(R=paste(paste(R, Rsum, sep="_("), ")", sep=""),
+                               HR=paste(paste(HR, HRsum, sep="_("), ")", sep=""),
+                               RBI=paste(paste(RBI, RBIsum, sep="_("), ")", sep=""),
+                               SB=paste(paste(SB, SBsum, sep="_("), ")", sep=""),
+                               AVG=paste(paste(AVG, AVGsum, sep="_("), ")", sep=""),
+                               Wins=paste(paste(Wins, Winsum, sep="_("), ")", sep=""),
+                               SO=paste(paste(SO, SOsum, sep="_("), ")", sep=""),
+                               S_H=paste(paste(S_H, S_Hsum, sep="_("), ")", sep=""),
+                               ERA=paste(paste(ERA, ERAsum, sep="_("), ")", sep=""),
+                               WHIP=paste(paste(WHIP, WHIPsum, sep="_("), ")", sep="")) %>%
+                        select(Team, R, HR, RBI, SB, AVG, 
+                               Wins, SO, S_H, ERA, WHIP, total) %>%
+                        arrange(desc(total))
              
              return(dfRanks)
          }
          , options=list(info=FALSE, paging=FALSE, searching=FALSE, ordering=FALSE)
          )
-    
+             
           ### Tabs for each team roster
           renderTeam(input, output, names(team[1]))
           renderTeam(input, output, names(team[2]))
@@ -221,6 +261,26 @@ shinyServer(
           renderPitcherSummary(input, output, "summaryP7", names(team[7]))
           renderPitcherSummary(input, output, "summaryP8", names(team[8]))
           renderPitcherSummary(input, output, "summaryP9", names(team[9]))
+
+          renderRes(input, output, "res1", names(team[1]))
+          renderRes(input, output, "res2", names(team[2]))
+          renderRes(input, output, "res3", names(team[3]))
+          renderRes(input, output, "res4", names(team[4]))
+          renderRes(input, output, "res5", names(team[5]))
+          renderRes(input, output, "res6", names(team[6]))
+          renderRes(input, output, "res7", names(team[7]))
+          renderRes(input, output, "res8", names(team[8]))
+          renderRes(input, output, "res9", names(team[9]))
+
+          renderPitcherRes(input, output, "resP1", names(team[1]))
+          renderPitcherRes(input, output, "resP2", names(team[2]))
+          renderPitcherRes(input, output, "resP3", names(team[3]))
+          renderPitcherRes(input, output, "resP4", names(team[4]))
+          renderPitcherRes(input, output, "resP5", names(team[5]))
+          renderPitcherRes(input, output, "resP6", names(team[6]))
+          renderPitcherRes(input, output, "resP7", names(team[7]))
+          renderPitcherRes(input, output, "resP8", names(team[8]))
+          renderPitcherRes(input, output, "resP9", names(team[9]))
          
      }
 )
